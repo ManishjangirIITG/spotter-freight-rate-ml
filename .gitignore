@@ -216,3 +216,28 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+cat << 'EOF' > .gitignore
+# Data and Artifacts (External)
+data/*
+!data/.gitkeep
+artifacts/
+*.log
+
+# Environment & Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE & OS files
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+.idea/
+EOF
