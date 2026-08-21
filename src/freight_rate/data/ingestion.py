@@ -22,6 +22,8 @@ def load_raw_dataset(path: Path, is_training: bool = True) -> pd.DataFrame:
         
     if not is_valid:
         raise DataValidationError(f"Schema validation failed for {path.name}: {issues}")
+
+    logger.info(f"Ingestion of raw dataset from {path} completed")
         
     return df
 
