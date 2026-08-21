@@ -11,60 +11,44 @@ from freight_rate.models.train import prepare_features_and_target
 logger = logging.getLogger(__name__)
 
 
-def generate_validation_predictions(
-    output_path: Path = None,
-) -> pd.DataFrame:
-    """Loads latest trained model pipeline, processes external validation data,
-    and exports formatted rate predictions."""
+import joblib
+import numpy as np
+import pandas as pd
+from freight_rate import config
+from freight_rate.data.ingestion import load_validation_data
+
+def generate_validation_predictions(output_path=None):
     if output_path is None:
-        output_path = (
-            config.ARTIFACTS_DIR / "predictions" / "validation_predictions.csv"
-        )
+        output_path = config.ARTIFACTS_DIR / "predictions" / "validation_predictions.csv"
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    val_df = load_validation_data()
+    
+    cleaner = joblib.load(config.ARTIFACTS_DIR / "models" / "cleaner_best.joblib")
+    engineer = joblib.load(config.ARTIFACTS_DIR / "models" / "engineer_best.joblib")
+    model = joblib.load(config.ARTIFACTS_DIR / "models" / "lgbm_model_best.joblib")
 
-    # 1. Load latest trained artifacts
-    model_dir = config.ARTIFACTS_DIR / "models"
-    logger.info("Loading latest serialized pipeline artifacts...")
-    cleaner = joblib.load(model_dir / "cleaner_latest.joblib")
-    engineer = joblib.load(model_dir / "engineer_latest.joblib")
-    model = joblib.load(model_dir / "lgbm_model_latest.joblib")
-
-    # 2. Load external validation target data
-    raw_val_df = load_validation_data()
-
-    # 3. Apply feature transformation sequence
-    processed_df = cleaner.transform(raw_val_df)
+    processed_df = cleaner.transform(val_df)
     processed_df = engineer.transform(processed_df)
 
-    X_val, _ = prepare_features_and_target(processed_df)
+    feature_cols = [c for c in processed_df.columns if c not in [config.ID_COL, config.TARGET_COL, "date"]]
+    X_val = processed_df[feature_cols].copy()
 
-    # Convert categorical variables
-    for col in config.CATEGORICAL_COLS + ["route_id"]:
-        if col in X_val.columns:
-            X_val[col] = X_val[col].astype("category")
+    cat_cols = [c for c in config.CATEGORICAL_COLS + ["route_id"] if c in X_val.columns]
+    for col in cat_cols:
+        X_val[col] = X_val[col].astype("category")
 
-    # 4. Generate rate predictions
-    logger.info("Generating predictions on validation set...")
-    predictions = model.predict(X_val)
+    # Inverse transform predictions from log scale
+    raw_preds = model.predict(X_val)
+    final_preds = np.expm1(raw_preds)
 
-    # 5. Format output
-    pred_df = pd.DataFrame(
-        {config.ID_COL: raw_val_df[config.ID_COL], "posted_rate": predictions}
-    )
+    submission_df = pd.DataFrame({
+        config.ID_COL: val_df[config.ID_COL],
+        "posted_rate": final_preds
+    })
 
-    # Ensure output row count matches expected contract
-    if len(pred_df) != config.EXPECTED_VAL_ROWS:
-        logger.warning(
-            f"Prediction row count ({len(pred_df)}) mismatch with expected target ({config.EXPECTED_VAL_ROWS})"
-        )
-
-    pred_df.to_csv(output_path, index=False)
-    logger.info(
-        f"Validation predictions exported to {output_path} | Shape: {pred_df.shape}"
-    )
-
-    return pred_df
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    submission_df.to_csv(output_path, index=False)
+    return submission_df
 
 
 if __name__ == "__main__":

@@ -18,6 +18,38 @@ from freight_rate.models.baseline import calculate_metrics, time_based_split
 
 logger = logging.getLogger(__name__)
 
+def train_production_model(X_train, y_train, X_val, y_val):
+    cat_cols = [c for c in config.CATEGORICAL_COLS + ["route_id"] if c in X_train.columns]
+    for col in cat_cols:
+        X_train[col] = X_train[col].astype("category")
+        X_val[col] = X_val[col].astype("category")
+
+    # Apply Log1p Transformation to Target
+    y_train_log = np.log1p(y_train)
+
+    params = {
+        "objective": "regression",
+        "n_estimators": 1000,
+        "learning_rate": 0.03,
+        "num_leaves": 31,
+        "random_state": 42,
+        "verbose": -1,
+    }
+
+    model = lgb.LGBMRegressor(**params)
+    model.fit(
+        X_train,
+        y_train_log,
+        eval_set=[(X_val, y_val)],
+        callbacks=[lgb.early_stopping(stopping_rounds=50, verbose=False)],
+    )
+
+    preds_val_log = model.predict(X_val)
+    preds_val = np.expm1(preds_val_log)
+
+    metrics = calculate_metrics(y_val.values, preds_val)
+    return model, metrics
+
 
 def prepare_features_and_target(
     df: pd.DataFrame,
