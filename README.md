@@ -40,10 +40,3 @@ make evaluate
 make predict
 make test
 ```
-
-## Model Architecture & Performance
-
-* Primary Model: LightGBM Regressor
-* Validation Strategy: Time-based split at 2025-09-01
-* Validation MAE: ~$147.31
-* Validation MAPE: ~7.25%
