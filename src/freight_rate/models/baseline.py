@@ -104,8 +104,11 @@ def run_baseline_experiments() -> Dict[str, Dict[str, float]]:
 if __name__ == "__main__":
     from freight_rate.logging_config import setup_logging
     setup_logging(log_filename="baseline_experiment.log")
+    logger = logging.getLogger(__name__)
     
     metrics = run_baseline_experiments()
     print("\n================ BASELINE EVALUATION RESULTS ================")
     for model_name, res in metrics.items():
         print(f"Model: {model_name:<20} | MAE: ${res['mae']:.2f} | RMSE: ${res['rmse']:.2f} | MAPE: {res['mape']:.2f}%")
+        logger.info(f"Baseline model metrics :: Model: {model_name:<20} | MAE: ${res['mae']:.2f} | RMSE: ${res['rmse']:.2f} | MAPE: {res['mape']:.2f}%")
+        
