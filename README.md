@@ -2,6 +2,8 @@
 
 An end-to-end Machine Learning pipeline designed to predict spot market freight rates based on shipment parameters, spatial signals, and historical trends.
 
+Note: Dataset isn't present in the data/ directory, It is intentional and you need upload your own dataset files in the data/  directory to make it work perfectly
+
 ## Project Structure
 
 ```text
@@ -45,4 +47,3 @@ make test
 * Validation Strategy: Time-based split at 2025-09-01
 * Validation MAE: ~$147.31
 * Validation MAPE: ~7.25%
-
